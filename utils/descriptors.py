@@ -12,8 +12,10 @@ STATE_CHOICES = (
 
 CURRENCY_CHOICES = {
     "codes": ["RUB", "USD"],
-    "names": ["руб", "USD"],
+    "names": ["руб.", "USD"],
 }
+
+NULLABLE_FIELDS = ["from"]
 
 
 class Field(ABC):
@@ -21,12 +23,16 @@ class Field(ABC):
         self.name = f"_{name}"
 
     def __set__(self, instance, value):
-        self.check_params(
-            field_name=self.name,
-            set_value=value
-        )
+        if value is not None:
+            self.check_params(
+                field_name=self.name,
+                set_value=value
+            )
+        else:
+            if self.name.strip("_") not in NULLABLE_FIELDS:
+                raise ValueError(f"{self.name.strip('_')} field can't be None")
 
-        setattr(__obj=instance, __name=self.name, __value=value)
+        setattr(instance, self.name, value)
 
     def __get__(self, instance, owner):
         return getattr(instance, self.name)
@@ -72,35 +78,50 @@ class StateField(CharField):
             raise ValueError("Incorrect state for transaction")
 
 
-class CurrencyField(CharField):
+class CurrencyNameField(CharField):
     @classmethod
     def check_params(cls, field_name: str, set_value: Any):
         super().check_params(field_name, set_value)
 
-        if set_value not in CURRENCY_CHOICES["names"] or \
-           set_value not in CURRENCY_CHOICES["codes"]:
-            raise ValueError("Unknown code/name currency")
+        if set_value.strip() not in CURRENCY_CHOICES["names"]:
+            raise ValueError("Unknown name of currency")
+
+
+class CurrencyCodeField(CharField):
+    @classmethod
+    def check_params(cls, field_name: str, set_value: Any):
+        super().check_params(field_name, set_value)
+
+        if set_value.strip() not in CURRENCY_CHOICES["codes"]:
+            raise ValueError("Unknown code of currency")
 
 
 class DateField(Field):
     @classmethod
     def check_params(cls, field_name: str, set_value: Any):
         try:
-            datetime.strptime(set_value, "%Y-%m-%d")
+            datetime.strptime(set_value[:10], "%Y-%m-%d")
         except Exception as e:
-            print(f"{e}"
+            print(f"{e}\n"
                   f"Incorrect date for DateField")
             exit(1)
 
     def __get__(self, instance, owner):
-        return getattr(instance, self.name).strftime("%d.%m.%Y")
+        return datetime.strptime(
+            getattr(instance, self.name)[:10],
+            "%Y-%m-%d"
+        ).strftime("%d.%m.%Y")
 
 
 class AccountField(Field):
     @classmethod
     def check_params(cls, field_name: str, set_value: Any):
-        if not re.fullmatch(r"[A-Za-z А-Яа-я]*(\d){16}", set_value):
-            raise ValueError("Incorrect account data")
+        if "счет" not in set_value.lower():
+            if re.fullmatch(r"[A-Za-z А-Яа-я]*\d{16}", set_value) is None:
+                raise ValueError("Incorrect account data")
+        else:
+            if re.fullmatch(r"(Счет|счет) \d{20}", set_value) is None:
+                raise ValueError("Incorrect account data")
 
     def __get__(self, instance, owner):
         account_info: str = getattr(instance, self.name)
@@ -111,10 +132,11 @@ class AccountField(Field):
 class MoneyAmountField(Field):
     @classmethod
     def check_params(cls, field_name: str, set_value: Any):
-        if not re.fullmatch(
-            r"[^-]\d+[.]\d{2}",
-            set_value
-        ):
-            raise ValueError("Incorrect money amount")
+        if set_value is not None:
+            if not re.fullmatch(
+                r"[^-]\d+[.]\d{2}",
+                set_value
+            ):
+                raise ValueError("Incorrect money amount")
 
 
