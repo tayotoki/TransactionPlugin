@@ -9,7 +9,7 @@ class JSONHandler:
     def __init__(self, data_path: Path = None):
         self.data: Path = data_path if data_path else JSON_OPS_DATA
 
-    def get_data(self) -> Generator[dict, None, None]:
+    def get_data(self) -> Generator[dict[str, int | str], None, None]:
         with open(self.data) as file:
             for operation in iter(json.load(file)):
                 if operation:
