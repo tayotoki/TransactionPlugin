@@ -1,14 +1,15 @@
 import re
+from typing import Optional
 
 
-def get_hidden_cart_number(number: str) -> str:
-    if number is None:
+def get_hidden_cart_number(number: Optional[str]) -> str:
+    if number is None or not number:
         return ""
 
     cart_name = re.search(
-        r"(?P<cart_name>[A-Za-z А-Яа-я]*)(?= \d)",
+        r"(?P<cart_name>[A-Za-z А-Яа-я]*)(?= ?\d{4,})",
         number,
-    ).group("cart_name")
+    ).group("cart_name").strip()
 
     if cart_name not in ("Счет", "счет"):
         cart_number: list[str] = re.findall(
@@ -27,6 +28,12 @@ def get_hidden_cart_number(number: str) -> str:
         ])
 
     else:
+
+        # Для единообразия вывода
+        # счет -> Счет,
+        # Счет -> Счет
+        cart_name = cart_name.title()
+
         cart_number: str = "".join(re.findall(
             r"(?P<number>\d{20})",
             number,
