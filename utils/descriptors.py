@@ -102,9 +102,8 @@ class DateField(Field):
         try:
             datetime.strptime(set_value[:10], "%Y-%m-%d")
         except Exception as e:
-            print(f"{e}\n"
-                  f"Incorrect date for DateField")
-            exit(1)
+            raise ValueError(f"{e}\n"
+                             f"Incorrect date for DateField")
 
     def __get__(self, instance, owner):
         return datetime.strptime(
@@ -120,7 +119,7 @@ class AccountField(Field):
             if re.fullmatch(r"[A-Za-z А-Яа-я]*\d{16}", set_value) is None:
                 raise ValueError("Incorrect account data")
         else:
-            if re.fullmatch(r"(Счет|счет) \d{20}", set_value) is None:
+            if re.fullmatch(r"(Счет|счет) ?\d{20}", set_value) is None:
                 raise ValueError("Incorrect account data")
 
     def __get__(self, instance, owner):
@@ -134,9 +133,7 @@ class MoneyAmountField(Field):
     def check_params(cls, field_name: str, set_value: Any):
         if set_value is not None:
             if not re.fullmatch(
-                r"[^-]\d+[.]\d{2}",
+                r"^[^-]?\d+[.]\d{2}$",
                 set_value
             ):
                 raise ValueError("Incorrect money amount")
-
-
